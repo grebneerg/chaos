@@ -1,6 +1,6 @@
 [package]
 name = "chaos"
 version = "0.1.0"
-authors = ["schooljack <jack.greenberg@icsd.k12.ny.us>"]
+authors = ["Jack Greenberg <theProgrammerJack@gmail.com>"]
 
 [dependencies]

@@ -21,7 +21,7 @@ fn main() {
 
 fn num_cycles<F: Fn(f64) -> f64>(func: F, start: f64) -> usize {
     let mut nums = Vec::new();
-    for num in RecursiveIterator::new(func, start).skip(1000).take(50) {
+    for num in RecursiveIterator::new(&func, start).skip(1000).take(50) {
         let num = (num * ROUNDING).round() / ROUNDING;
         if !nums.contains(&num) {
             nums.push(num);
@@ -30,26 +30,56 @@ fn num_cycles<F: Fn(f64) -> f64>(func: F, start: f64) -> usize {
     nums.len()
 }
 
+struct RecursiveFunction<T, F>
+where
+    T: Copy + CloseEnough,
+    F: Fn(T) -> T,
+{
+    func: F,
+    start: T,
+}
+
+impl<T, F> RecursiveFunction<T, F>
+where
+    T: Copy + CloseEnough,
+    F: Fn(T) -> T,
+{
+    fn end_behavior(&self) -> Behavior<T> {
+        let mut vals = Vec::new();
+        for val in RecursiveIterator::new(&self.func, self.start).skip(1000).take(50) {
+            if !vals.iter().any(|x: &T| x.close_enough_to(&val)) {
+                vals.push(val);
+            }
+        }
+        
+        if vals.len() == 1 {
+            Behavior::Convergence(vals[0])
+        } else {
+            Behavior::Cycle(vals)
+        }
+    }
+}
+
 enum Behavior<T> {
     Convergence(T),
     Cycle(Vec<T>),
 }
 
-struct RecursiveIterator<T, F>
+struct RecursiveIterator<'a, T, F>
 where
     T: Copy,
-    F: Fn(T) -> T,
+    F: 'a + Fn(T) -> T,
 {
     current: T,
-    func: F,
+    func: &'a F,
 }
 
-impl<T, F> RecursiveIterator<T, F>
+impl<'a, T, F> RecursiveIterator<'a, T, F>
 where
     T: Copy,
     F: Fn(T) -> T,
 {
-    fn new(func: F, start: T) -> Self {
+    fn new(func: &'a F, start: T) -> Self {
         Self {
             func,
             current: start,
@@ -57,7 +87,7 @@ where
     }
 }
 
-impl<T, F> Iterator for RecursiveIterator<T, F>
+impl<'a, T, F> Iterator for RecursiveIterator<'a, T, F>
 where
     T: Copy,
     F: Fn(T) -> T,
@@ -69,4 +99,8 @@ where
         self.current = (self.func)(temp);
         Some(self.current)
     }
+}
+
+trait CloseEnough {
+    fn close_enough_to(&self, other: &Self) -> bool;
 }
