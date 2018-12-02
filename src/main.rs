@@ -1,4 +1,5 @@
 use std::iter::Iterator;
+use std::fmt;
 
 const ROUNDING: f64 = 1000000.0;
 
@@ -7,15 +8,17 @@ fn main() {
 
     for a in 2200..4000 {
         let a: f64 = f64::from(a) * 0.001;
-        let func = |x: f64| a * x * (1.0 - x);
+        let func = RecursiveFunction {
+            func: |x: f64| a * x * (1.0 - x),
+            start: 0.8,
+        };
 
-        cycles.push(num_cycles(func, 0.8));
+        cycles.push(func.end_behavior(50));
     }
 
     cycles
         .iter()
         .enumerate()
-        .filter(|(_, x)| **x == 3)
         .for_each(|(i, x)| println!("{:.3}: {}", (i + 2200) as f64 * 0.001, x));
 }
 
@@ -44,9 +47,9 @@ where
     T: Copy + CloseEnough,
     F: Fn(T) -> T,
 {
-    fn end_behavior(&self) -> Behavior<T> {
+    fn end_behavior(&self, max_cycles: usize) -> Behavior<T> {
         let mut vals = Vec::new();
-        for val in RecursiveIterator::new(&self.func, self.start).skip(1000).take(50) {
+        for val in RecursiveIterator::new(&self.func, self.start).skip(1000).take(max_cycles) {
             if !vals.iter().any(|x: &T| x.close_enough_to(&val)) {
                 vals.push(val);
             }
@@ -54,6 +57,8 @@ where
         
         if vals.len() == 1 {
             Behavior::Convergence(vals[0])
+        } else if vals.len() == max_cycles {
+            Behavior::Chaos
         } else {
             Behavior::Cycle(vals)
         }
@@ -63,6 +68,24 @@ where
 enum Behavior<T> {
     Convergence(T),
     Cycle(Vec<T>),
+    Chaos,
+}
+
+impl<T> fmt::Display for Behavior<T> where T: fmt::Display {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Behavior::Convergence(v) => write!(f, "Behavoir: Converges to {}", v),
+            Behavior::Chaos => write!(f, "Behavior: Chaos!"),
+            Behavior::Cycle(vec) => {
+                write!(f, "Behavior: {}-Cycle at these values: ", vec.len());
+                for ref T in vec {
+                    write!(f, "{}, ", T);
+                }
+                
+                Ok(())
+            }
+        }
+    }
 }
 
 struct RecursiveIterator<'a, T, F>
@@ -103,4 +126,13 @@ where
 
 trait CloseEnough {
     fn close_enough_to(&self, other: &Self) -> bool;
+}
+
+impl CloseEnough for f64 {
+    fn close_enough_to(&self, other: &Self) -> bool {
+        let other = (other * ROUNDING).round() / ROUNDING;
+        let this = (self * ROUNDING).round() / ROUNDING;
+        
+        this == other
+    }
 }
