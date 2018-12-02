@@ -19,6 +19,11 @@ fn main() {
     cycles
         .iter()
         .enumerate()
+        .filter(|(_, x)| if let Behavior::Cycle(ref v) = x {
+            v.len() == 3
+        } else {
+            false
+        })
         .for_each(|(i, x)| println!("{:.3}: {}", (i + 2200) as f64 * 0.001, x));
 }
 
